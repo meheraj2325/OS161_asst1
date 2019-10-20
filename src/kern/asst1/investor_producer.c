@@ -171,8 +171,9 @@ void *take_order(){
 
   if(count_order_taken >= (NCUSTOMER * N_ITEM_TYPE * 10))
   {
-    //V(item_mutex);
-    kprintf("**");
+    V(order_take_full);
+    V(item_mutex);
+    //kprintf("**");
     return NULL;
   }
 
@@ -190,6 +191,14 @@ void *take_order(){
     head = head -> next;
   }
   count_order_taken++;
+
+  if(count_order_taken >= (NCUSTOMER * N_ITEM_TYPE * 10))
+  {
+    V(order_take_full);
+    V(item_mutex);
+    //kprintf("**");
+    return NULL;
+  }
 
   V(item_mutex);
 
