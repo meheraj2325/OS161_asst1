@@ -60,7 +60,7 @@ void customer(void *unusedpointer, unsigned long customernum)
 
 		//choose the even item first
 		for (j = 0; j < N_ITEM_TYPE; j++) {
-			orderItem[j].item_quantity = random()%MAX_ITEM_BUY+1;
+			orderItem[j].item_quantity=random()%MAX_ITEM_BUY+1;
 			orderItem[j].requestedBy=customernum;
 			orderItem[j].servBy = -1;
 		}
@@ -265,9 +265,9 @@ void print_statistics(void){
 	kprintf("Verification ....\n");
 	long int t_in=0l;
 	for(i=0;i<NBANK;i++){
-		t_in=bank_account[i].acu_loan_amount*BANK_INTEREST;
+		t_in=bank_account[i].acu_loan_amount*BANK_INTEREST/100;
 		if(t_in!=bank_account[i].interest_amount){
-			kprintf("[%d] calculated interest(t_in) == %ld interest ==  %ld\n", i,t_in/100,bank_account[i].interest_amount);
+			kprintf("[%d] calculated interest(t_in) == %ld interest ==  %ld\n", i,t_in,bank_account[i].interest_amount);
 		}
 	}
 	if(t_customer!=t_bank+t_producer){

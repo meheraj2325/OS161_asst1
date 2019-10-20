@@ -7,12 +7,16 @@
 #include "invest_assignment.h"
 #include "investor_producer.h"
 
-
 static struct semaphore *item_mutex;
-static struct semaphore *item_full;
+static struct semaphore *order_take_full;
+static struct semaphore *serv_con_full;
 static struct semaphore *bank_mutex;
 
-
+static int count_order_taken;
+static int count_serve_orders[NCUSTOMER];
+static int count_consumed[NCUSTOMER];
+static int total_loan_reimberse[NPRODUCER];
+static int iterations = 0;
 /*
  * order_item()
  *
@@ -21,7 +25,7 @@ static struct semaphore *bank_mutex;
  * have produced the item with that appropriate for the customers.
  *
  * The item itself contains the number of ordered items.
- */
+ */ 
 
 void order_item(void *itm)
 {
@@ -29,6 +33,8 @@ void order_item(void *itm)
     //panic("You need to write some code!!!!");
 
     P(item_mutex);
+    //kprintf("***********************************\n");
+    //kprintf("in order_item\n\n");
 
     struct item *ordered = itm;
     struct item *head = req_serv_item;
@@ -48,6 +54,7 @@ void order_item(void *itm)
         head = req_serv_item;
         ordered++;
         i++;
+        V(order_take_full);
     }
 
     while((head->next)!=NULL)
@@ -69,29 +76,13 @@ void order_item(void *itm)
 
         ordered++;
         i++;
+        V(order_take_full);
     }
 
     V(item_mutex);
-    V(item_full);
 
 }
 
-
-void* deleteItem(unsigned long customernum, void* It)
-{
-    struct item* it = It;
-    if(it == NULL)return it;
-    if(it -> order_type == SERVICED && (unsigned)it-> requestedBy == customernum)
-    {
-        customer_spending_amount[customernum] += (it->item_quantity) * (it->i_price);
-        it = it -> next;
-    }
-    else {
-     it->next = deleteItem(customernum, it->next);
-     return it;
-    }
-    return it = deleteItem(customernum, it);
-}
 /**
  * consume_item()
  * Customer consume items which were served by the producers.
@@ -101,13 +92,43 @@ void* deleteItem(unsigned long customernum, void* It)
  **/
 void consume_item(unsigned long customernum)
 {
-    (void) customernum; // avoid warning
-    //panic("You need to write some code!!!!");
-    P(item_full);
+    // (void) customernum; // avoid warning
+    // panic("You need to write some code!!!!");
+
+    P(serv_con_full);
+
     P(item_mutex);
 
-    req_serv_item = deleteItem(customernum,req_serv_item);
+    //kprintf("***********************************\n");
+    //kprintf("in consume_item\n\n");
 
+    struct item *head = req_serv_item;
+
+    while(head -> order_type == SERVICED && (unsigned)head-> requestedBy == customernum){
+      customer_spending_amount[customernum] += (head->item_quantity) * (head->i_price);
+      head = head->next;
+      if(head == NULL) break;
+    }
+
+    req_serv_item = head;
+
+    if(head == NULL) return;
+
+    while(head != NULL){
+      if((head->next) != NULL && (head->next) -> order_type == SERVICED && (unsigned)(head->next) -> requestedBy == customernum){
+        customer_spending_amount[customernum] += ((head->next)->item_quantity) * ((head->next)->i_price);
+        head->next = (head->next)->next;
+      }
+      head = head->next;
+      
+    }
+    count_serve_orders[customernum] = 0;
+    count_consumed[customernum]++;
+    //kprintf("C %ld consumed ordered items for %d times\n",customernum,count_consumed[customernum]);
+    // for(int i=0;i<NCUSTOMER;i++){
+    //   kprintf("%d ",count_consumed[i]);
+    // }
+    // kprintf("\n");
     V(item_mutex);
 }
 
@@ -119,10 +140,9 @@ void consume_item(unsigned long customernum)
  * producer threads to exit when no customers remain.
  */
 
-void end_shoping()
-{
-    //panic("You need to write some code!!!!");
+void end_shoping(){
 
+      //panic("You need to write some code!!!!");
 }
 
 
@@ -145,25 +165,35 @@ void end_shoping()
  * The function can return NULL to signal the producer thread it can now
  * exit as there are no customers nor orders left.
  */
+ 
+void *take_order(){
+  //panic("You need to write some code!!!!");
 
-void *take_order()
-{
-    // panic("You need to write some code!!!!");
+  if(count_order_taken >= (NCUSTOMER * N_ITEM_TYPE * 10))
+  {
+    //V(item_mutex);
+    kprintf("**");
+    return NULL;
+  }
 
-    P(item_full);
-    P(item_mutex);
-    struct item *head = req_serv_item;
+  P(order_take_full);
+  P(item_mutex);
+  
 
-    
-    while(head->order_type != REQUEST)
-    {
-      head = head -> next;
-    }
+  //kprintf("***********************************\n");
+    //kprintf("in take_order\n\n");
+  struct item *head = req_serv_item;
 
-    V(item_mutex);
+  
+  while(head != NULL && head->order_type != REQUEST )
+  {
+    head = head -> next;
+  }
+  count_order_taken++;
 
+  V(item_mutex);
 
-    return head; //modify
+  return head; //modify
 }
 
 
@@ -174,17 +204,12 @@ void *take_order()
  *
  */
 
-void produce_item(void *v)
-{
-    (void)v;
+void produce_item(void *v){
+	(void)v;
     // panic("You need to write some code!!!!");
 
-    P(item_mutex);
-
-    struct item *head = v;
-    head -> order_type = SERVICED;
-
-    V(item_mutex);
+   // //kprintf("***********************************\n");
+    // //kprintf("in produce_item\n\n");
 }
 
 
@@ -194,48 +219,64 @@ void produce_item(void *v)
  * Takes a produced item and makes it available to the waiting customer.
  */
 
-void serve_order(void *v,unsigned long producernumber)
-{
-    (void)v;
-    (void)producernumber;
+void serve_order(void *v,unsigned long producernumber){
+	//(void)v;
+    // (void)producernumber;
     // panic("You need to write some code!!!!");
 
+    // while(serve_order_lock == 1);
+    // serve_order_lock = 1;
+
     P(item_mutex);
+    ////kprintf("***********************************\n");
+    //kprintf("in serve_order\n\n");
 
     struct item *temp = v;
     unsigned int price = ITEM_PRICE + (ITEM_PRICE * (int)((PRODUCT_PROFIT + BANK_INTEREST)/100));
+    temp -> order_type = SERVICED;
+    temp -> servBy = producernumber;
     temp -> i_price = price;
+    count_serve_orders[temp -> requestedBy]++;
+
+    if(count_serve_orders[temp->requestedBy]>= N_ITEM_TYPE){
+      V(serv_con_full);
+    }
 
     V(item_mutex);
-    V(item_full);
+    
+
 }
 
 /**
  * calculate_loan_amount()
  * Calculate loan amount
  */
-long int calculate_loan_amount(void* itm)
-{
-    (void)itm;
+long int calculate_loan_amount(void* itm){
+	 //(void)itm;
     // panic("You need to write some code!!!!");
-    P(item_mutex);
+
+    
+    ////kprintf("***********************************\n");
+    ////kprintf("in calculate_loan_amount\n\n");
+
     struct item *temp = itm;
     return (long int)(temp -> item_quantity * ITEM_PRICE);
-    V(item_mutex);
+    
 }
 
 /**
  * void loan_request()
  * Request for loan from bank
  */
-void loan_request(void *amount,unsigned long producernumber)
-{
-    (void)amount;
-    (void)producernumber;
+void loan_request(void *amount,unsigned long producernumber){
+	//(void)amount;
+    //(void)producernumber;
     // panic("You need to write some code!!!!");
 
-    P(bank_mutex);
 
+    P(bank_mutex);
+    //kprintf("***********************************\n");
+    //kprintf("in loan_request\n\n");
     long int *loan = amount;
     long int max=-1,maxind=0;
     for(int i=0;i<NBANK;i++)
@@ -253,18 +294,21 @@ void loan_request(void *amount,unsigned long producernumber)
     V(bank_mutex);
 }
 
-
 /**
  * loan_reimburse()
  * Return loan amount and service charge
  */
-void loan_reimburse(void * loan,unsigned long producernumber)
-{
-    (void)loan;
-    (void)producernumber;
+void loan_reimburse(void * loan,unsigned long producernumber){
+	//(void)loan;
+    //(void)producernumber;
     // panic("You need to write some code!!!!");
 
+
     P(bank_mutex);
+    //kprintf("***********************************\n");
+    //kprintf("in loan_reimburse\n\n");
+    total_loan_reimberse[producernumber]++;
+    iterations++;
 
     long int *amount = loan;
     for(int i = 0; i<NBANK; i++)
@@ -278,7 +322,15 @@ void loan_reimburse(void * loan,unsigned long producernumber)
         break;
       }
     }
-    P(bank_mutex);
+
+    if(iterations%200 ==0 || iterations == ((NCUSTOMER * N_ITEM_TYPE * 10) - 1) ){
+      kprintf("i = %d -> ",iterations);
+      for(int i=0;i<NPRODUCER;i++){
+        kprintf("%d ",total_loan_reimberse[i]);
+      }
+      kprintf("\n");
+    }
+    V(bank_mutex);
 }
 
 /*
@@ -295,12 +347,27 @@ void loan_reimburse(void * loan,unsigned long producernumber)
  * producers and customers
  */
 
-void initialize()
-{
-  //panic("You need to write some code!!!!");
-  item_mutex = sem_create("item_list_mutex", 1);
-  bank_mutex = sem_create("bank_mutex", 1);
-  item_full = sem_create("item_list_full", 0);
+void initialize(){
+    //kprintf("***********************************\n");
+    //kprintf("in initialize\n\n");
+    //panic("You need to write some code!!!!");
+    item_mutex = sem_create("item__mutex", 1);
+    order_take_full = sem_create("order_take_full", 0);
+    serv_con_full = sem_create("serv_con_full", 0);
+    bank_mutex = sem_create("bank_mutex", 1);
+  
+    count_order_taken = 0;
+    for(int i=0;i<NCUSTOMER;i++){
+      count_serve_orders[i] = 0;
+    }
+
+    for(int i=0;i<NCUSTOMER;i++){
+      count_consumed[i] = 0;
+    }
+
+    for(int i=0;i<NPRODUCER;i++){
+      total_loan_reimberse[i] = 0;
+    }
 }
 
 /*
@@ -310,9 +377,13 @@ void initialize()
  * has gone home.
  */
 
-void finish()
-{
+void finish(){
+
+    //kprintf("***********************************\n");
+    //kprintf("in finish\n\n");
     //panic("You need to write some code!!!!");
     sem_destroy(item_mutex);
-    sem_destroy(item_full);
+    sem_destroy(order_take_full);
+    sem_destroy(serv_con_full);
+    sem_destroy(bank_mutex);
 }

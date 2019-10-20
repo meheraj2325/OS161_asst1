@@ -22,7 +22,6 @@ long int calculate_loan_amount(void*); 		//calculate loan amount
 void loan_request(void *,unsigned long); 			// producer request loan to a bank
 void serve_order(void *,unsigned long); 			// producer serve the request of a customer
 void loan_reimburse(void *,unsigned long); 			// return loan money with service charge
-void* deleteItem(unsigned long customernum, void* it);
 
 /* Investor-Producer process opening and closing functions */
 
@@ -33,5 +32,6 @@ extern struct item *req_serv_item;
 extern struct bankdata bank_account[NBANK];
 extern long int customer_spending_amount[NCUSTOMER];
 extern long int producer_income[NPRODUCER];
+
 
 #endif

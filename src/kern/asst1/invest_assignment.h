@@ -31,7 +31,6 @@
 /*
  * The maximum number of item
  */
-
 #define N_ITEM_TYPE 100 	// Number of item types
 #define MAX_ITEM_BUY 10 	// A customer can buy 1 to MAX_ITEM_BUY item at a time.
 
