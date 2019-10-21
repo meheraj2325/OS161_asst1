@@ -107,6 +107,7 @@ void consume_item(unsigned long customernum)
     while(head -> order_type == SERVICED && (unsigned)head-> requestedBy == customernum){
       customer_spending_amount[customernum] += (head->item_quantity) * (head->i_price);
       head = head->next;
+      count_consumed[customernum]++;
       if(head == NULL) break;
     }
 
@@ -118,17 +119,18 @@ void consume_item(unsigned long customernum)
       if((head->next) != NULL && (head->next) -> order_type == SERVICED && (unsigned)(head->next) -> requestedBy == customernum){
         customer_spending_amount[customernum] += ((head->next)->item_quantity) * ((head->next)->i_price);
         head->next = (head->next)->next;
+        count_consumed[customernum]++;
       }
-      head = head->next;
+      else head = head->next;
       
     }
     count_serve_orders[customernum] = 0;
-    count_consumed[customernum]++;
+    //count_consumed[customernum]++;
     //kprintf("C %ld consumed ordered items for %d times\n",customernum,count_consumed[customernum]);
-    // for(int i=0;i<NCUSTOMER;i++){
-    //   kprintf("%d ",count_consumed[i]);
-    // }
-    // kprintf("\n");
+    /*for(int i=0;i<NCUSTOMER;i++){
+      kprintf("%d ",count_consumed[i]);
+    }
+    kprintf("\n");*/
     V(item_mutex);
 }
 
@@ -192,13 +194,13 @@ void *take_order(){
   }
   count_order_taken++;
 
-  if(count_order_taken >= (NCUSTOMER * N_ITEM_TYPE * 10))
+  /*if(count_order_taken >= (NCUSTOMER * N_ITEM_TYPE * 10))
   {
     V(order_take_full);
     V(item_mutex);
     //kprintf("**");
     return NULL;
-  }
+  }*/
 
   V(item_mutex);
 
@@ -241,11 +243,12 @@ void serve_order(void *v,unsigned long producernumber){
     //kprintf("in serve_order\n\n");
 
     struct item *temp = v;
-    unsigned int price = ITEM_PRICE + (ITEM_PRICE * (int)((PRODUCT_PROFIT + BANK_INTEREST)/100));
+    unsigned int price = ITEM_PRICE + (int)((ITEM_PRICE * (PRODUCT_PROFIT + BANK_INTEREST))/100);
     temp -> order_type = SERVICED;
     temp -> servBy = producernumber;
     temp -> i_price = price;
     count_serve_orders[temp -> requestedBy]++;
+    producer_income[producernumber]+= (long int)((ITEM_PRICE * temp-> item_quantity * (PRODUCT_PROFIT - BANK_INTEREST))/100);
 
     if(count_serve_orders[temp->requestedBy]>= N_ITEM_TYPE){
       V(serv_con_full);
@@ -319,6 +322,16 @@ void loan_reimburse(void * loan,unsigned long producernumber){
     total_loan_reimberse[producernumber]++;
     iterations++;
 
+
+    // if(iterations%200 ==0 || iterations == ((NCUSTOMER * N_ITEM_TYPE * 10) - 1) ){
+    //     kprintf("before update##########################\n");
+    //     for(int i=0;i<NBANK;i++)
+    //     {
+    //         kprintf("%d = %ld \n",i,bank_account[i].remaining_cash);
+    //     }
+    //     kprintf("#######################################\n");
+    // }
+
     long int *amount = loan;
     for(int i = 0; i<NBANK; i++)
     {
@@ -326,11 +339,21 @@ void loan_reimburse(void * loan,unsigned long producernumber){
       {
         bank_account[i].remaining_cash += *amount;
         bank_account[i].prod_loan[producernumber] -= *amount;
-        bank_account[i].acu_loan_amount -= *amount;
-        bank_account[i].interest_amount += (*amount)*(long int)(BANK_INTEREST/100);
+        //bank_account[i].acu_loan_amount -= *amount;
+        bank_account[i].interest_amount += (long int)(((*amount)*BANK_INTEREST)/100);
         break;
       }
     }
+
+    //    if(iterations%200 ==0 || iterations == ((NCUSTOMER * N_ITEM_TYPE * 10) - 1) ){
+    //     kprintf("after update@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+    //     for(int i=0;i<NBANK;i++)
+    //     {
+    //         kprintf("%d = %ld \n",i,bank_account[i].remaining_cash);
+    //     }
+    //     kprintf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+    // }
+
 
     if(iterations%200 ==0 || iterations == ((NCUSTOMER * N_ITEM_TYPE * 10) - 1) ){
       kprintf("i = %d -> ",iterations);
@@ -339,6 +362,7 @@ void loan_reimburse(void * loan,unsigned long producernumber){
       }
       kprintf("\n");
     }
+
     V(bank_mutex);
 }
 

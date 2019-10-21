@@ -266,9 +266,9 @@ void print_statistics(void){
 	long int t_in=0l;
 	for(i=0;i<NBANK;i++){
 		t_in=bank_account[i].acu_loan_amount*BANK_INTEREST/100;
-		if(t_in!=bank_account[i].interest_amount){
+		//if(t_in!=bank_account[i].interest_amount){
 			kprintf("[%d] calculated interest(t_in) == %ld interest ==  %ld\n", i,t_in,bank_account[i].interest_amount);
-		}
+		//}
 	}
 	if(t_customer!=t_bank+t_producer){
 		kprintf("%ld <?> %ld\n",t_customer,(t_bank+t_producer));
