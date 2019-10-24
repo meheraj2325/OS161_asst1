@@ -6,6 +6,8 @@
 #ifndef _INVESTOR_PRODUCER_H_
 #define _INVESTOR_PRODUCER_H_
 
+#define ORDER_TAKEN 2
+
 /**
  * FUNCTIONs Prototype declares here
  * Add or modify more funtion if you need more
