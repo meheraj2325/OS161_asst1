@@ -454,16 +454,13 @@ void loan_reimburse(void * loan,unsigned long producernumber){
 void initialize(){
     //panic("You need to write some code!!!!");
 
-
-    char s[]="0123456789",ss[]="serv_con_full0";
     item_mutex = sem_create("item__mutex", 1);
     order_take_full = sem_create("order_take_full", 0);
     bank_mutex = sem_create("bank_mutex", 1);
     count_order_taken = 0;
   
     for(int i=0;i<NCUSTOMER;i++){
-        ss[13]=s[i];
-        serv_con_full[i] = sem_create(ss, 0);
+        serv_con_full[i] = sem_create("serv_con_full", 0);
         count_serve_orders[i] = 0;
     }
 
